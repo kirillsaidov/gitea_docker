@@ -39,3 +39,23 @@ services:
       - gitea
     volumes:
       - ${GITEA_DB_VOLUME}:/var/lib/mysql
+
+  runner:
+    image: gitea/act_runner:latest
+    container_name: ${RUNNER_CONTAINER_NAME:-gitea-runner}
+    restart: unless-stopped
+    environment:
+      - GITEA_INSTANCE_URL=${RUNNER_GITEA_URL}
+      - GITEA_RUNNER_REGISTRATION_TOKEN=${RUNNER_TOKEN}
+      - GITEA_RUNNER_NAME=${RUNNER_NAME:-main-runner}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${RUNNER_HOST_MOUNT}:${RUNNER_HOST_MOUNT}
+      - runner_data:/data
+    networks:
+      - gitea
+    depends_on:
+      - server
+
+volumes:
+  runner_data:
