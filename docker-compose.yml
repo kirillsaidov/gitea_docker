@@ -48,9 +48,10 @@ services:
       - GITEA_INSTANCE_URL=${RUNNER_GITEA_URL}
       - GITEA_RUNNER_REGISTRATION_TOKEN=${RUNNER_TOKEN}
       - GITEA_RUNNER_NAME=${RUNNER_NAME:-main-runner}
+      - CONFIG_FILE=/data/config.yaml
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${RUNNER_HOST_MOUNT}:${RUNNER_HOST_MOUNT}
+      - ./config.yaml:/data/config.yaml:ro
       - runner_data:/data
     networks:
       - gitea
