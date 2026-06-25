@@ -52,6 +52,17 @@ The runner allows you to run Gitea Actions workflows automatically on this serve
 2. Click **Create Runner** and copy the token
 3. Paste it into `.env` as `RUNNER_TOKEN`
 
+#### Configure allowed mounts
+Jobs run inside throwaway containers, so a workflow can only reach host
+directories it explicitly bind-mounts — and the runner only permits paths
+listed in `config.yaml`:
+```sh
+cp config.yaml.example config.yaml
+# edit container.valid_volumes to include the directory where your repos live
+```
+Without this, the runner silently drops the mount and your workflow fails with
+`is not a valid volume, will be ignored` (and later `No such file or directory`).
+
 #### Start the runner
 The runner starts automatically with `docker compose up -d`. It registers itself with Gitea on first boot.
 
@@ -62,8 +73,6 @@ Go to **Admin Panel** → `/admin/runners` — the runner should appear as onlin
 Create `.gitea/workflows/deploy.yml` in your repository:
 
 ```yaml
-name: Deploy
-
 on:
   push:
     branches:
@@ -72,15 +81,27 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    container:
+      # Mount the host directory holding your repo into the job container.
+      # This path must be allowed by container.valid_volumes in config.yaml.
+      options: -v /home/user:/home/user
     steps:
       - name: Pull and deploy
         run: |
-          cd /home/administrator/FILES/your-repo
-          git pull origin main
-          docker compose -f docker-compose-server.yml up -d --build --no-deps backend frontend
+          cd /home/user/your-repo
+          # Pull over HTTP using the runner-reachable Gitea URL + the built-in
+          # Actions token (no SSH host alias, which won't resolve in the container).
+          git pull http://x-access-token:${{ secrets.GITEA_TOKEN }}@<GITEA_IP>:<PORT>/owner/your-repo.git main
+          docker compose up -d --build
 ```
 
-Since the runner mounts the host filesystem via `RUNNER_HOST_MOUNT`, it has direct access to your server directories and Docker without any SSH required.
+How the access works:
+- The job runs in a container, so it cannot see host paths unless mounted —
+  hence the `container.options` bind, gated by `valid_volumes`.
+- The Docker socket is auto-mounted into the job, so `docker compose` here drives
+  the **host** Docker daemon (build context and volumes resolve to host paths).
+- The repo's normal SSH remote (`git@gitea:...`) won't resolve inside the job, so
+  pull over HTTP using the server IP and the auto-injected `secrets.GITEA_TOKEN`.
 
 ## LICENSE
 Unlicense. You can do whatever you want with the repo files.
