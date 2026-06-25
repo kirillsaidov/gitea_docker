@@ -1,0 +1,16 @@
+# act_runner configuration.
+# Copy to config.yaml and adjust for your server:  cp config.yaml.example config.yaml
+# Mounted into the runner at /data/config.yaml via the CONFIG_FILE env var.
+
+container:
+  # Whitelist of host paths that workflow job containers are allowed to
+  # bind-mount. If a workflow requests `-v <path>:<path>` (via container.options)
+  # and <path> is NOT covered here, the runner silently ignores it
+  # ("is not a valid volume, will be ignored").
+  #
+  # Add the directory where your repos live so deploy workflows can reach them.
+  # NOTE: the Docker socket is auto-mounted into job containers already — do not
+  # list it here and do not mount it again in your workflow (causes a duplicate
+  # mount point error).
+  valid_volumes:
+    - /home/user
