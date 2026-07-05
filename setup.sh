@@ -92,8 +92,12 @@ LAN_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 ask   GITEA_SSH_DOMAIN "Host for SSH clone URLs (LAN IP / direct host)" "${LAN_IP:-$GITEA_DOMAIN}"
 
 if [ "$BEHIND_PROXY" = "true" ]; then
-  GITEA_WEB_BIND="127.0.0.1"
   DEF_ROOT_URL="https://${GITEA_DOMAIN}/"
+  #  A proxy on THIS host can reach 127.0.0.1 (most locked-down). A proxy in a
+  #  Docker container or on another machine CANNOT — it must reach the host over
+  #  the LAN, so bind to all interfaces.
+  ask_yn PROXY_ON_HOST "Does the tunnel/proxy run on THIS host directly? (No = Docker container or another machine)" "Y"
+  if [ "$PROXY_ON_HOST" = "true" ]; then GITEA_WEB_BIND="127.0.0.1"; else GITEA_WEB_BIND="0.0.0.0"; fi
 else
   GITEA_WEB_BIND="0.0.0.0"
   DEF_ROOT_URL="http://${GITEA_DOMAIN}:${GITEA_FRONTEND_PORT}/"
