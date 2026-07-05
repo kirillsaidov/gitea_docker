@@ -38,7 +38,20 @@ the SSH clone URL.
 ./setup.sh
 ```
 > `.env` holds secrets and is gitignored — never commit it. To reconfigure,
-> re-run `setup.sh` (it backs up the old `.env` first).
+> re-run `setup.sh` (it backs up the old `.env` first and **reuses existing
+> secrets**, so DB passwords stay in sync with an already-initialized database).
+
+> **Bind-mount gotcha:** the MySQL data lives at the host path `/gitea/mysql`,
+> which is a bind mount — `docker compose down -v` does **not** delete it. MySQL
+> only applies `MYSQL_PASSWORD` when it first initializes an *empty* data dir. So
+> if the DB password in `.env` ever stops matching the initialized database
+> (e.g. secrets were regenerated), you'll see `Access denied for user 'gitea'`.
+> Fix by wiping the data dir for a clean re-init (destroys all data):
+> ```sh
+> sudo docker compose down
+> sudo rm -rf /gitea && sudo mkdir -p /gitea/mysql && sudo chown -R 1000:1000 /gitea
+> sudo docker compose up -d
+> ```
 
 ## 3. Start the stack
 ```sh

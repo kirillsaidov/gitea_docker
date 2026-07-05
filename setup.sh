@@ -52,6 +52,11 @@ gen_pass() {  # url/db-safe alphanumeric (hex)
   fi
 }
 
+# Read a value from the current (old) .env, if present. Used to REUSE existing
+# secrets on a re-run — regenerating DB passwords would not match the already-
+# initialized MySQL data dir (a bind mount that survives `docker compose down -v`).
+prev() { [ -f "$ENV_FILE" ] && grep -E "^$1=" "$ENV_FILE" 2>/dev/null | head -n1 | cut -d= -f2- || true; }
+
 # Prefer Gitea's own generator (proper format); fall back to a long hex secret.
 GITEA_VERSION="$(grep -oE 'gitea/gitea:[0-9]+\.[0-9]+\.[0-9]+' "$COMPOSE_FILE" | head -n1 | cut -d: -f2 || true)"
 GITEA_VERSION="${GITEA_VERSION:-latest}"
@@ -121,13 +126,21 @@ else
   RUNNER_TOKEN=""
 fi
 
-# --- generate secrets -------------------------------------------------------
-head "Generating secrets…"
-DB_PASSWORD="$(gen_pass)"
-DB_ROOT_PASSWORD="$(gen_pass)"
-ok "database passwords"
-SECRET_KEY="$(gen_gitea_secret SECRET_KEY)";       ok "SECRET_KEY"
-INTERNAL_TOKEN="$(gen_gitea_secret INTERNAL_TOKEN)"; ok "INTERNAL_TOKEN"
+# --- secrets: REUSE if an .env already has them, else generate --------------
+head "Secrets…"
+secret() {  # secret VAR_LABEL  ENV_KEY  GENERATOR_CMD…
+  local label="$1" key="$2"; shift 2
+  local existing; existing="$(prev "$key")"
+  if [ -n "$existing" ] && [ "$existing" != "changeme" ] && [ "${existing#changeme}" = "$existing" ]; then
+    printf '%s' "$existing"; printf '%s (reused from existing .env)\n' "$label" >&2
+  else
+    "$@"; printf '%s (generated)\n' "$label" >&2
+  fi
+}
+DB_PASSWORD="$(secret 'DB password'        GITEA__database__PASSWD          gen_pass)"
+DB_ROOT_PASSWORD="$(secret 'DB root pass'  MYSQL_ROOT_PASSWORD             gen_pass)"
+SECRET_KEY="$(secret 'SECRET_KEY'          GITEA__security__SECRET_KEY     gen_gitea_secret SECRET_KEY)"
+INTERNAL_TOKEN="$(secret 'INTERNAL_TOKEN'  GITEA__security__INTERNAL_TOKEN gen_gitea_secret INTERNAL_TOKEN)"
 
 # --- write .env -------------------------------------------------------------
 [ -f "$ENV_FILE" ] && cp "$ENV_FILE" "$BACKUP" && warn "backed up old .env -> $BACKUP"
