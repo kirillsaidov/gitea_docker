@@ -189,8 +189,9 @@ cat <<EOF
 2. Start the stack:
      ${c_dim}docker compose up -d${c_off}
 
-3. Registration is disabled, so create YOUR admin account from the CLI:
-     ${c_dim}docker compose exec ${CONTAINER_NAME} gitea admin user create \\
+3. Registration is disabled, so create YOUR admin account from the CLI.
+   ('server' = compose service name; '-u git' because Gitea won't run as root):
+     ${c_dim}docker compose exec -u git server gitea admin user create \\
        --admin --username YOURNAME --email you@${GITEA_DOMAIN} \\
        --password 'PICK-A-PASSWORD' --must-change-password=false${c_off}
    (You can change this password on the server anytime.)

@@ -47,9 +47,12 @@ sudo docker compose up -d          # add -d to run detached
 
 ## 4. Create your admin account
 Registration is disabled and the install wizard is locked, so make your admin
-from the CLI (change the values):
+from the CLI (change the values). Notes:
+- `server` is the **compose service name** — `docker compose exec` wants the
+  service, not the container name.
+- `-u git` is required: Gitea refuses to run as root, and `exec` defaults to root.
 ```sh
-docker compose exec gitea gitea admin user create \
+docker compose exec -u git server gitea admin user create \
   --admin --username YOURNAME --email you@example.com \
   --password 'PICK-A-PASSWORD' --must-change-password=false
 ```
@@ -161,7 +164,7 @@ How the access works:
 
 ## Backups
 Back up regularly: the `/gitea` volume (repos, config, attachments) and the
-MySQL data. The simplest all-in-one is `docker compose exec gitea gitea dump`,
+MySQL data. The simplest all-in-one is `docker compose exec -u git server gitea dump`,
 shipped off the server.
 
 ## LICENSE
