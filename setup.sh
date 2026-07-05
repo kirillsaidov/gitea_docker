@@ -13,7 +13,7 @@ COMPOSE_FILE="docker-compose.yml"
 
 c_bold=$'\033[1m'; c_dim=$'\033[2m'; c_grn=$'\033[32m'; c_ylw=$'\033[33m'; c_off=$'\033[0m'
 say()  { printf '%s\n' "$*"; }
-head() { printf '\n%s%s%s\n' "$c_bold" "$*" "$c_off"; }
+hdr()  { printf '\n%s%s%s\n' "$c_bold" "$*" "$c_off"; }
 ok()   { printf '%s✓%s %s\n' "$c_grn" "$c_off" "$*"; }
 warn() { printf '%s!%s %s\n' "$c_ylw" "$c_off" "$*"; }
 
@@ -71,7 +71,7 @@ gen_gitea_secret() {  # $1 = SECRET_KEY | INTERNAL_TOKEN
 }
 
 # ===========================================================================
-head "Gitea production setup  ${c_dim}(image: gitea/gitea:${GITEA_VERSION})${c_off}"
+hdr "Gitea production setup  ${c_dim}(image: gitea/gitea:${GITEA_VERSION})${c_off}"
 say  "Answer the prompts; secrets are generated for you. Ctrl-C to abort."
 
 if [ -f "$ENV_FILE" ]; then
@@ -80,7 +80,7 @@ if [ -f "$ENV_FILE" ]; then
 fi
 
 # --- questions --------------------------------------------------------------
-head "1) Container & network"
+hdr "1) Container & network"
 ask   CONTAINER_NAME "Container name" "gitea"
 ask   GITEA_DOMAIN   "Public domain served via Cloudflare Tunnel / proxy (e.g. git.example.com)"
 ask_yn BEHIND_PROXY  "Serve HTTPS via a Cloudflare Tunnel or reverse proxy? (recommended)" "Y"
@@ -96,28 +96,31 @@ if [ "$BEHIND_PROXY" = "true" ]; then
   #  A proxy on THIS host can reach 127.0.0.1 (most locked-down). A proxy in a
   #  Docker container or on another machine CANNOT — it must reach the host over
   #  the LAN, so bind to all interfaces.
-  ask_yn PROXY_ON_HOST "Does the tunnel/proxy run on THIS host directly? (No = Docker container or another machine)" "Y"
-  if [ "$PROXY_ON_HOST" = "true" ]; then GITEA_WEB_BIND="127.0.0.1"; else GITEA_WEB_BIND="0.0.0.0"; fi
+  #  Default to 0.0.0.0 (LAN-reachable) so a containerized cloudflared / another
+  #  host can reach it out of the box. Answer No only to harden to loopback when
+  #  the proxy runs on THIS host.
+  ask_yn PROXY_ON_HOST "Bind the web port to all interfaces so a container/other-host proxy can reach it? (No = loopback only, proxy must run on THIS host)" "Y"
+  if [ "$PROXY_ON_HOST" = "true" ]; then GITEA_WEB_BIND="0.0.0.0"; else GITEA_WEB_BIND="127.0.0.1"; fi
 else
   GITEA_WEB_BIND="0.0.0.0"
   DEF_ROOT_URL="http://${GITEA_DOMAIN}:${GITEA_FRONTEND_PORT}/"
 fi
 ask   GITEA_ROOT_URL "External root URL" "$DEF_ROOT_URL"
 
-head "2) Storage"
+hdr "2) Storage"
 ask   GITEA_VOLUME    "Gitea data volume (host path)" "/gitea"
 ask   GITEA_DB_VOLUME "Database volume (host path)" "${GITEA_VOLUME}/mysql"
 
-head "3) Access policy"
+hdr "3) Access policy"
 say   "${c_dim}Self-registration and the install wizard are always locked.${c_off}"
 ask_yn REQUIRE_SIGNIN "Require visitors to sign in even to VIEW repos?" "N"
 GITEA_REQUIRE_SIGNIN_VIEW="$REQUIRE_SIGNIN"
 
-head "4) Database"
+hdr "4) Database"
 ask   DB_NAME "Database name" "gitea"
 ask   DB_USER "Database user" "gitea"
 
-head "5) Actions runner (optional)"
+hdr "5) Actions runner (optional)"
 ask_yn WITH_RUNNER "Configure an Actions runner now?" "N"
 if [ "$WITH_RUNNER" = "true" ]; then
   ask RUNNER_NAME       "Runner name" "main-runner"
@@ -131,7 +134,7 @@ else
 fi
 
 # --- secrets: REUSE if an .env already has them, else generate --------------
-head "Secrets…"
+hdr "Secrets…"
 secret() {  # secret VAR_LABEL  ENV_KEY  GENERATOR_CMD…
   local label="$1" key="$2"; shift 2
   local existing; existing="$(prev "$key")"
@@ -198,7 +201,7 @@ chmod 600 "$ENV_FILE" 2>/dev/null || true
 ok "wrote $ENV_FILE (permissions 600)"
 
 # --- next steps -------------------------------------------------------------
-head "Next steps"
+hdr "Next steps"
 cat <<EOF
 1. Make sure the data dir exists and is owned by UID/GID 1000:
      ${c_dim}sudo mkdir -p ${GITEA_VOLUME} ${GITEA_DB_VOLUME} && sudo chown -R 1000:1000 ${GITEA_VOLUME}${c_off}
