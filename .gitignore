@@ -1,0 +1,7 @@
+# Secrets & local runtime config — never commit these
+.env
+.env.bak.*
+config.yaml
+
+# Local data (in case volumes are placed inside the repo)
+/gitea/

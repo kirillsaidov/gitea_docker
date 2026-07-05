@@ -9,11 +9,30 @@ services:
     environment:
       - USER_UID=1000
       - USER_GID=1000
+      # --- Database ---
       - GITEA__database__DB_TYPE=${GITEA__database__DB_TYPE}
       - GITEA__database__HOST=${GITEA__database__HOST}
       - GITEA__database__NAME=${GITEA__database__NAME}
       - GITEA__database__USER=${GITEA__database__USER}
       - GITEA__database__PASSWD=${GITEA__database__PASSWD}
+      # --- Public URL / SSH (from .env) ---
+      - GITEA__server__DOMAIN=${GITEA_DOMAIN}
+      - GITEA__server__SSH_DOMAIN=${GITEA_SSH_DOMAIN}   # LAN IP/host — SSH bypasses the tunnel
+      - GITEA__server__ROOT_URL=${GITEA_ROOT_URL}
+      - GITEA__server__SSH_PORT=${GITEA_SSH_PORT}   # port shown in clone URLs
+      - GITEA__server__SSH_LISTEN_PORT=22           # actual port inside the container
+      # --- Secrets (from .env — generate with ./setup.sh) ---
+      - GITEA__security__SECRET_KEY=${GITEA__security__SECRET_KEY}
+      - GITEA__security__INTERNAL_TOKEN=${GITEA__security__INTERNAL_TOKEN}
+      # --- Production access posture (locked; edit here if you must) ---
+      - GITEA__security__INSTALL_LOCK=true                       # skip/lock the web install wizard
+      - GITEA__service__DISABLE_REGISTRATION=true                # nobody can self-register
+      - GITEA__service__ALLOW_ONLY_EXTERNAL_REGISTRATION=false
+      - GITEA__service__REQUIRE_SIGNIN_VIEW=${GITEA_REQUIRE_SIGNIN_VIEW:-false}
+      - GITEA__service__DEFAULT_ALLOW_CREATE_ORGANIZATION=false
+      - GITEA__openid__ENABLE_OPENID_SIGNIN=false
+      - GITEA__openid__ENABLE_OPENID_SIGNUP=false
+      - GITEA__repository__DEFAULT_PRIVATE=private               # new repos private until you publish them
     restart: always
     networks:
       - gitea
@@ -22,7 +41,7 @@ services:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     ports:
-      - "${GITEA_FRONTEND_PORT}:3000"
+      - "${GITEA_WEB_BIND:-127.0.0.1}:${GITEA_FRONTEND_PORT}:3000"
       - "${GITEA_SSH_PORT}:22"
     depends_on:
       - db
